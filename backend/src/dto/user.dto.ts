@@ -5,3 +5,10 @@ export interface UserInput {
     password: string;
     phone: number;
   }
+
+
+
+  export interface UserLogin{
+    email:string;
+    password:string
+  }

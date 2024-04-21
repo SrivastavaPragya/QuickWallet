@@ -1,6 +1,9 @@
 import {Request,Response,NextFunction} from 'express'
-import { UserInput } from '../dto'
+import { UserInput, UserLogin } from '../dto'
 import { User } from '../models'
+import bcrypt from "bcryptjs"
+import jwt, { JwtPayload } from 'jsonwebtoken'
+const SECRET = "SECr3mm";
 
 
 
@@ -32,17 +35,80 @@ export const CreateUser = async (req: Request, res: Response, next: NextFunction
 
 
 export const LoginUser =async(req:Request,res:Response,next:NextFunction)=>{
+try{
 
+    const {email,password}=<UserLogin>req.body
+    if ( !email || !password) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const user= await User.findOne({email});
+
+      if(!user){
+        return res.status(403).json({ message: "Invalid email or password" });
+      }
+
+
+      const isMatch= await bcrypt.compare(password,user.password)
+
+
+      if(isMatch){
+        const token = jwt.sign({ id: user._id, email: user.email }, SECRET, {
+            expiresIn: "1h",
+          });
+          res.status(200).json({ message: "User logged in successfully", token });
+      }
+
+      else {
+        res.status(403).json({ message: "Invalid email or password" });
+      }
+
+}catch(error){
+    console.error("Login error:", error);
+    res.status(500).json({ message: "Internal server error" });
+}
 }
 
 
 
-export const GetUserProfile =async(req:Request,res:Response,next:NextFunction)=>{
+export const GetUserProfile =async(req:Request&{user?:JwtPayload},res:Response,next:NextFunction)=>{
+try{
+    if(!req.user){
+        return res.status(404).json({message:"user does not exsists"})
+    }
 
+    const UserId=req.user.id;
+
+    const user=await User.findById(UserId)
+
+    if(user){
+        res.json(user);
+    }
+
+}catch(error){
+    res.status(500).send({ error: "Internal server error" });
+}
 }
 
 
 
-export const UpdateUserProfile =async(req:Request,res:Response,next:NextFunction)=>{
+export const UpdateUserProfile = async (req: Request & { user?: JwtPayload }, res: Response, next: NextFunction) => {
+    if(!req.user){
+        return res.status(401).json({ message: "'Unauthorized'" });
+      }
 
-}
+      const UserId=req.user.id;
+      const updates=req.body;
+    try {
+       
+        const user = await User.findByIdAndUpdate(UserId, updates, { new: true });
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        res.json(user);
+
+    } catch (error) {
+        console.error("Update profile error:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
