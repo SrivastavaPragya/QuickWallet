@@ -1,6 +1,6 @@
 import {Request,Response,NextFunction} from 'express'
 import { UserInput, UserLogin } from '../dto'
-import { User } from '../models'
+import { Account, User } from '../models'
 import bcrypt from "bcryptjs"
 import jwt, { JwtPayload } from 'jsonwebtoken'
 const SECRET = "SECr3mm";
@@ -22,7 +22,16 @@ export const CreateUser = async (req: Request, res: Response, next: NextFunction
         return res.status(403).json({ message: "User already exists" });
       } else {
         const newUser = new User({ Firstname, Lastname, email, password, phone });
+       
         await newUser.save();
+
+        const UserId=newUser._id;
+        
+        const NewAccount=new Account({
+          userId: UserId,
+          balance: 1 + Math.random() * 10000
+        })
+        await NewAccount.save()
         res.status(200).json({ message: "Signup successful!" });
       }
     } catch (error) {
